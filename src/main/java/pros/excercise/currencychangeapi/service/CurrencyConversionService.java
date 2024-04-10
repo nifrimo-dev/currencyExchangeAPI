@@ -9,6 +9,7 @@ import pros.excercise.currencychangeapi.domain.IExchangeRateRepository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class CurrencyConversionService {
@@ -20,9 +21,9 @@ public class CurrencyConversionService {
     }
 
     public double convert(Currency sourceCurrency, Currency targetCurrency, LocalDate date, double amount) {
-        List<ExchangeRate> rates = exchangeRateRepository.findExchangeRateBySourceTargetCurrencyAndEffectiveDate(sourceCurrency, targetCurrency, date);
-        if (!rates.isEmpty()) {
-            return amount * rates.get(0).getRate();
+        Optional<ExchangeRate> rate = exchangeRateRepository.findExchangeRateBySourceTargetCurrencyAndEffectiveDate(sourceCurrency, targetCurrency, date);
+        if (rate.isPresent()) {
+            return amount * rate.get().getRate();
         } else {
             // handle the case where there is no direct exchange rate available
             // this is left as an exercise for the reader
