@@ -61,34 +61,51 @@ public class ExchangeRepository implements IExchangeRateRepository{
     }
 
     @Override
-    public Response<Optional<ExchangeRate>> findExchangeRateBySourceTargetCurrencyAndEffectiveDate(Currency sourceCurrency, Currency targetCurrency, LocalDate effectiveDate) {
-        return findExchangeRate(sourceCurrency, targetCurrency, effectiveDate, false);
-    }
-
-    public Response<Optional<ExchangeRate>> findAuxSourceCurrencyByTargetCurrencyAndEffectiveDate(Currency sourceCurrency, Currency targetCurrency, LocalDate effectiveDate, double amount) {
-        return findExchangeRate(sourceCurrency, targetCurrency, effectiveDate, true);
-    }
-
-    private Response<Optional<ExchangeRate>> findExchangeRate(Currency sourceCurrency, Currency targetCurrency, LocalDate effectiveDate, boolean isAuxiliary) {
-        var currencyList = exchangeRates.stream()
-                .filter(rate -> rate.getTargetCurrency() == targetCurrency && (!isAuxiliary || rate.getSourceCurrency() == sourceCurrency))
+    public Response<Optional<ExchangeRate>> findExchangeRateBySourceTargetCurrencyAndEffectiveDate(Currency sourceCurrency, Currency targetCurrency, LocalDate effectiveDate)
+    {
+        var directExchangeRate = exchangeRates.stream()
+                .filter(rate -> rate.getTargetCurrency() == targetCurrency
+                        && rate.getSourceCurrency() == sourceCurrency)
                 .toList();
 
-        if (!currencyList.isEmpty()) {
-            var currencyItem = currencyList.stream()
+        if(!directExchangeRate.isEmpty()){
+            var validDateExchangeRate = directExchangeRate.stream()
                     .filter(rate -> rate.getEffectiveDate().isEqual(effectiveDate))
                     .findFirst();
 
-            if (currencyItem.isPresent()) {
-                var exchangeRate = currencyItem.stream()
+            if(validDateExchangeRate.isPresent()){
+                return new Response<>(validDateExchangeRate, MessagesResponse.EXCHANGE_FOUND.getValue());
+            }else{
+                return new Response<>(Optional.empty(), MessagesResponse.INVALID_DATE.getValue());
+            }
+        }
+
+        return new Response<>(Optional.empty(), MessagesResponse.EXCHANGE_NOT_FOUND.getValue());
+    }
+
+    public Response<Optional<ExchangeRate>> findAuxSourceCurrencyByTargetCurrencyAndEffectiveDate(Currency sourceCurrency, Currency targetCurrency, LocalDate effectiveDate, double amount)
+    {
+        var sourceCurrencyList = exchangeRates.stream()
+                .filter(rate -> rate.getTargetCurrency() == targetCurrency)
+                .toList();
+
+        if(!sourceCurrencyList.isEmpty()){
+            var sourceCurrencyItem =sourceCurrencyList.stream()
+                    .filter(rate -> rate.getEffectiveDate().isEqual(effectiveDate))
+                    .findFirst();
+
+            if(sourceCurrencyItem.isPresent()){
+                var auxExchangeRate = sourceCurrencyItem.stream()
                         .flatMap(rate -> findExchangeRateBySourceTargetCurrencyAndEffectiveDate(sourceCurrency, rate.getSourceCurrency(), effectiveDate).data().stream())
                         .findFirst();
 
-                if (exchangeRate.isPresent())
-                    return new Response<>(exchangeRate, MessagesResponse.EXCHANGE_FOUND.getValue());
-            } else {
+                if(auxExchangeRate.isPresent())
+                    return new Response<>(auxExchangeRate, MessagesResponse.EXCHANGE_FOUND.getValue());
+
+            }else{
                 return new Response<>(Optional.empty(), MessagesResponse.INVALID_DATE.getValue());
             }
+
         }
         return new Response<>(Optional.empty(), MessagesResponse.EXCHANGE_NOT_FOUND.getValue());
     }
