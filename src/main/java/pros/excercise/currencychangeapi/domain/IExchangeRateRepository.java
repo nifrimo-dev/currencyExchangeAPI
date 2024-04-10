@@ -1,12 +1,11 @@
 package pros.excercise.currencychangeapi.domain;
 
-import pros.excercise.currencychangeapi.api.ExchangeResult;
+import pros.excercise.currencychangeapi.api.responses.Response;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
 
 public interface IExchangeRateRepository {
-    Optional<ExchangeRate> findExchangeRateBySourceTargetCurrencyAndEffectiveDate(Currency sourceCurrency, Currency targetCurrency, LocalDate effectiveDate);
-    Optional<ExchangeRate> findAuxSourceCurrencyByTargetCurrencyAndEffectiveDate(Currency sourceCurrency, Currency targetCurrency, LocalDate effectiveDate, double amount);
+    Response<Optional<ExchangeRate>> findExchangeRateBySourceTargetCurrencyAndEffectiveDate(Currency sourceCurrency, Currency targetCurrency, LocalDate effectiveDate);
+    Response<Optional<ExchangeRate>> findAuxSourceCurrencyByTargetCurrencyAndEffectiveDate(Currency sourceCurrency, Currency targetCurrency, LocalDate effectiveDate, double amount);
 }
