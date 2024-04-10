@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import pros.excercise.currencychangeapi.api.responses.ExchangeResponse;
+import pros.excercise.currencychangeapi.api.responses.Response;
 import pros.excercise.currencychangeapi.domain.Currency;
 import pros.excercise.currencychangeapi.service.CurrencyConversionService;
 
@@ -20,7 +22,7 @@ public class CurrencyConversionController {
     }
 
     @GetMapping("/convert")
-    public double convert(@RequestParam Currency sourceCurrency, @RequestParam Currency targetCurrency, @RequestParam LocalDate date, @RequestParam double amount) {
+    public Response<ExchangeResponse> convert(@RequestParam Currency sourceCurrency, @RequestParam Currency targetCurrency, @RequestParam LocalDate date, @RequestParam double amount) {
         return currencyConversionService.convert(sourceCurrency, targetCurrency, date, amount);
     }
 }

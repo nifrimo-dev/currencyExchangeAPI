@@ -3,6 +3,7 @@ package pros.excercise.currencychangeapi.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import pros.excercise.currencychangeapi.api.enums.MessagesResponse;
+import pros.excercise.currencychangeapi.api.responses.ExchangeResponse;
 import pros.excercise.currencychangeapi.api.responses.Response;
 import pros.excercise.currencychangeapi.domain.Currency;
 import pros.excercise.currencychangeapi.domain.ExchangeRate;
@@ -21,16 +22,43 @@ public class CurrencyConversionService {
         this.exchangeRateRepository = exchangeRateRepository;
     }
 
-    public double convert(Currency sourceCurrency, Currency targetCurrency, LocalDate date, double amount) {
+    public Response<ExchangeResponse> convert(Currency sourceCurrency, Currency targetCurrency, LocalDate date, double amount) {
         LocalDate finalDate = findValidDate(sourceCurrency, targetCurrency, date);
+        double targetAmount;
         Response<Optional<ExchangeRate>> rate = exchangeRateRepository.findExchangeRateBySourceTargetCurrencyAndEffectiveDate(sourceCurrency, targetCurrency, finalDate);
 
         if (rate.message().equals(MessagesResponse.EXCHANGE_FOUND.getValue())) {
-            return calculateExchange(rate, amount);
+
+            targetAmount = calculateExchange(rate, amount);
+
+            return new Response<>(
+                    new ExchangeResponse(
+                            sourceCurrency,
+                            amount,
+                            targetCurrency,
+                            targetAmount),
+                    targetAmount != 0.0 ? MessagesResponse.SUCCESS_EXCHANGE.getValue() : MessagesResponse.FAILED_EXCHANGE.getValue());
+
         } else if (rate.message().equals(MessagesResponse.EXCHANGE_NOT_FOUND.getValue())) {
-            return calculateAuxiliaryExchange(sourceCurrency, targetCurrency, finalDate, amount);
+
+            targetAmount = calculateAuxiliaryExchange(sourceCurrency, targetCurrency, finalDate, amount);
+
+            return new Response<>(
+                    new ExchangeResponse(
+                            sourceCurrency,
+                            amount,
+                            targetCurrency,
+                            targetAmount),
+                    targetAmount != 0.0 ? MessagesResponse.SUCCESS_EXCHANGE.getValue() : MessagesResponse.FAILED_EXCHANGE.getValue());
         }
-        return 0;
+
+        return new Response<>(
+                new ExchangeResponse(
+                        sourceCurrency,
+                        amount,
+                        targetCurrency,
+                        0.0),
+                MessagesResponse.FAILED_EXCHANGE.getValue());
     }
 
     private LocalDate findValidDate(Currency sourceCurrency, Currency targetCurrency, LocalDate date) {
