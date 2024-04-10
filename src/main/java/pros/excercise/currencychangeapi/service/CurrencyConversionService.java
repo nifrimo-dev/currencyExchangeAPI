@@ -22,45 +22,56 @@ public class CurrencyConversionService {
     }
 
     public double convert(Currency sourceCurrency, Currency targetCurrency, LocalDate date, double amount) {
-        Response<Optional<ExchangeRate>> rate, auxSourceCurrency;
-        LocalDate finalDate;
-
-        do{
-            rate = exchangeRateRepository.findExchangeRateBySourceTargetCurrencyAndEffectiveDate(sourceCurrency, targetCurrency, date);
-            date = rate.message().equals(MessagesResponse.INVALID_DATE.getValue()) ? date.minusDays(1) : date;
-
-        }while (rate.message().equals(MessagesResponse.INVALID_DATE.getValue()));
-
-        finalDate = date;
+        LocalDate finalDate = findValidDate(sourceCurrency, targetCurrency, date);
+        Response<Optional<ExchangeRate>> rate = exchangeRateRepository.findExchangeRateBySourceTargetCurrencyAndEffectiveDate(sourceCurrency, targetCurrency, finalDate);
 
         if (rate.message().equals(MessagesResponse.EXCHANGE_FOUND.getValue())) {
-
-            return rate.data().map(r -> {
-                double rawResult = amount * r.getRate();
-                return Math.round(rawResult * 100.0) / 100.0;
-
-            }).orElse(0.0);
-
+            return calculateExchange(rate, amount);
         } else if (rate.message().equals(MessagesResponse.EXCHANGE_NOT_FOUND.getValue())) {
+            return calculateAuxiliaryExchange(sourceCurrency, targetCurrency, finalDate, amount);
+        }
+        return 0;
+    }
 
-            do{
-                auxSourceCurrency = exchangeRateRepository.findAuxSourceCurrencyByTargetCurrencyAndEffectiveDate(sourceCurrency, targetCurrency, finalDate, amount);
-                finalDate = auxSourceCurrency.message().equals(MessagesResponse.INVALID_DATE.getValue()) ? finalDate.minusDays(1) : finalDate;
-            } while (auxSourceCurrency.message().equals(MessagesResponse.INVALID_DATE.getValue()));
+    private LocalDate findValidDate(Currency sourceCurrency, Currency targetCurrency, LocalDate date) {
+        Response<Optional<ExchangeRate>> rate;
+        do {
+            rate = exchangeRateRepository.findExchangeRateBySourceTargetCurrencyAndEffectiveDate(sourceCurrency, targetCurrency, date);
+            if (rate.message().equals(MessagesResponse.INVALID_DATE.getValue())) {
+                date = date.minusDays(1);
+            }
+        } while (rate.message().equals(MessagesResponse.INVALID_DATE.getValue()));
+        return date;
+    }
 
+    private double calculateExchange(Response<Optional<ExchangeRate>> rate, double amount) {
+        return rate.data().map(r -> {
+            double rawResult = amount * r.getRate();
+            return Math.round(rawResult * 100.0) / 100.0;
+        }).orElse(0.0);
+    }
+
+    private double calculateAuxiliaryExchange(Currency sourceCurrency, Currency targetCurrency, LocalDate finalDate, double amount) {
+        Response<Optional<ExchangeRate>> auxSourceCurrency;
+        do {
+            auxSourceCurrency = exchangeRateRepository.findAuxSourceCurrencyByTargetCurrencyAndEffectiveDate(sourceCurrency, targetCurrency, finalDate, amount);
+            if (auxSourceCurrency.message().equals(MessagesResponse.INVALID_DATE.getValue())) {
+                finalDate = finalDate.minusDays(1);
+            }
+        } while (auxSourceCurrency.message().equals(MessagesResponse.INVALID_DATE.getValue()));
+
+        if (auxSourceCurrency.message().equals(MessagesResponse.EXCHANGE_FOUND.getValue())) {
             LocalDate finalDate1 = finalDate;
-
-            if (auxSourceCurrency.message().equals(MessagesResponse.EXCHANGE_FOUND.getValue())) {
-                return auxSourceCurrency.data().flatMap(auxSourceRate ->
+            return auxSourceCurrency.data().flatMap(auxSourceRate ->
                             exchangeRateRepository.findExchangeRateBySourceTargetCurrencyAndEffectiveDate(auxSourceRate.getTargetCurrency(), targetCurrency, finalDate1)
                                     .data().map(targetSourceRate -> {
                                         double rawResult = amount * auxSourceRate.getRate() * targetSourceRate.getRate();
                                         return Math.round(rawResult * 100.0) / 100.0;
                                     }))
                     .orElse(0.0);
-            }
         }
         return 0;
     }
+
 
 }
